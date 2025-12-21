@@ -6,7 +6,7 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
-    # FIX: This tells Docker to load variables from your local .env file
+    
     env_file:
       - .env
     depends_on:
@@ -17,7 +17,7 @@ services:
     restart: always
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    # FIX: We can also use the .env for the database credentials
+    
     env_file:
       - .env
     ports:

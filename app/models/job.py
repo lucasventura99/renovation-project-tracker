@@ -2,7 +2,7 @@
 import enum
 from decimal import Decimal
 from datetime import datetime
-from sqlalchemy import String, Enum, Numeric, ForeignKey, DateTime, func
+from sqlalchemy import String, Enum, Numeric, ForeignKey, DateTime, func, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 # We import User only for type checking to avoid runtime circular imports
@@ -55,3 +55,14 @@ class Job(Base):
         foreign_keys=[homeowner_id], 
         back_populates="homeowner_jobs"
     )
+    current_version: Mapped[int] = mapped_column(Integer, default=0)
+    def to_dict(self) -> dict:
+        """Serializes the job state for history tracking."""
+        return {
+            "description": self.description,
+            "location": self.location,
+            "cost": float(self.cost), # JSON doesn't support Decimal natively
+            "status": self.status.value,
+            "contractor_id": self.contractor_id,
+            "homeowner_id": self.homeowner_id,
+        }
