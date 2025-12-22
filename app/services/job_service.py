@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 from app.models.job import Job, JobStatus
 from app.models.user import User, UserRole
 from app.models.history import JobHistory  # Ensure this is imported
+from app.models.subtask import SubTask
 
 class JobService:
     
@@ -62,8 +63,8 @@ class JobService:
         
         # 5. Commit
         await session.commit()
-        await session.refresh(job)
-        return job
+        # Reload to ensure subtasks are loaded (refresh expires relationships)
+        return await JobService.get_job_by_id(session, user, job.id)
 
     # --- CRUD METHODS ---
 
@@ -101,8 +102,8 @@ class JobService:
         session.add(history)
 
         await session.commit()
-        await session.refresh(job)
-        return job
+        # Reload to ensure created_at and subtasks are populated
+        return await JobService.get_job_by_id(session, user, job.id)
 
     @staticmethod
     async def update_job_details(
@@ -164,6 +165,25 @@ class JobService:
             action_type="ASSIGN_HOMEOWNER"
         )
 
+    @staticmethod
+    async def add_subtask(
+        session: AsyncSession, user: User, job_id: int, description: str, cost: Decimal
+    ) -> Job:
+        job = await JobService.get_job_by_id(session, user, job_id)
+        if not job: raise ValueError("Job not found")
+        if job.contractor_id != user.id: raise PermissionError("Unauthorized")
+
+        subtask = SubTask(
+            description=description,
+            cost=cost,
+            job_id=job.id
+        )
+        session.add(subtask)
+        await session.commit()
+        # Refresh job to load the new subtask relationship
+        await session.refresh(job, attribute_names=["subtasks"])
+        return job
+
     # --- UNDO / REDO METHODS ---
 
     @staticmethod
@@ -209,8 +229,8 @@ class JobService:
         job.current_version = target_version
         
         await session.commit()
-        await session.refresh(job)
-        return job
+        # Reload to ensure subtasks are loaded
+        return await JobService.get_job_by_id(session, user, job.id)
 
     @staticmethod
     async def redo_last_change(session: AsyncSession, user: User, job_id: int) -> Job:
@@ -250,13 +270,13 @@ class JobService:
         job.current_version = target_version
         
         await session.commit()
-        await session.refresh(job)
-        return job
+        # Reload to ensure subtasks are loaded
+        return await JobService.get_job_by_id(session, user, job.id)
 
     # --- READ ---
     @staticmethod
     async def get_job_by_id(session: AsyncSession, user: User, job_id: int) -> Optional[Job]:
-        query = select(Job).where(Job.id == job_id)
+        query = select(Job).options(selectinload(Job.subtasks)).where(Job.id == job_id)
         result = await session.execute(query)
         job = result.scalar_one_or_none()
         
@@ -270,9 +290,9 @@ class JobService:
     @staticmethod
     async def get_jobs_for_user(session: AsyncSession, user: User) -> List[Job]:
         if user.role == UserRole.CONTRACTOR:
-            query = select(Job).where(Job.contractor_id == user.id).order_by(Job.id)
+            query = select(Job).options(selectinload(Job.subtasks)).where(Job.contractor_id == user.id).order_by(Job.id)
         else:
-            query = select(Job).where(Job.homeowner_id == user.id).order_by(Job.id)
+            query = select(Job).options(selectinload(Job.subtasks)).where(Job.homeowner_id == user.id).order_by(Job.id)
             
         result = await session.execute(query)
         return result.scalars().all()

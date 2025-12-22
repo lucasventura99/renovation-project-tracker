@@ -6,10 +6,11 @@ from sqlalchemy import String, Enum, Numeric, ForeignKey, DateTime, func, Intege
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 # We import User only for type checking to avoid runtime circular imports
-from typing import Optional, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.user import User
+    from app.models.subtask import SubTask
 
 class JobStatus(str, enum.Enum):
     PLANNING = "PLANNING"
@@ -55,6 +56,13 @@ class Job(Base):
         foreign_keys=[homeowner_id], 
         back_populates="homeowner_jobs"
     )
+    
+    subtasks: Mapped[List["SubTask"]] = relationship(
+        "SubTask",
+        back_populates="job",
+        cascade="all, delete-orphan"
+    )
+
     current_version: Mapped[int] = mapped_column(Integer, default=0)
     def to_dict(self) -> dict:
         """Serializes the job state for history tracking."""
