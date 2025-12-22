@@ -2,6 +2,7 @@ import strawberry
 from typing import Optional, List
 from datetime import datetime
 import json
+from app.api.types.subtask import SubTaskType
 
 @strawberry.type
 class JobHistoryType:
@@ -25,6 +26,7 @@ class JobType:
     current_version: int 
     created_at: datetime
     updated_at: datetime
+    subtasks: List[SubTaskType]
     
     @strawberry.field
     async def history(self, info) -> List[JobHistoryType]:

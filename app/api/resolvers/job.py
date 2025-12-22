@@ -5,6 +5,7 @@ from decimal import Decimal
 from strawberry.types import Info
 
 from app.api.types.job import JobType
+from app.api.types.subtask import SubTaskType
 from app.services.job_service import JobService
 from app.models.job import Job, JobStatus
 
@@ -18,6 +19,12 @@ def map_job_model_to_type(job: Job) -> JobType:
         created_at=job.created_at,
         updated_at=job.updated_at,
         current_version=job.current_version,
+        subtasks=[SubTaskType(
+            id=st.id,
+            description=st.description,
+            cost=st.cost,
+            is_completed=st.is_completed
+        ) for st in job.subtasks]
     )
 @strawberry.type
 class JobQuery:
@@ -127,5 +134,18 @@ class JobMutation:
 
         job = await JobService.update_job_details(
             info.context["db"], user, job_id, description, location, cost
+        )
+        return map_job_model_to_type(job)
+
+    @strawberry.mutation
+    async def add_subtask(
+        self, info: Info, job_id: int, description: str, cost: Decimal
+    ) -> JobType:
+        user = info.context.get("user")
+        if not user:
+            raise Exception("Not authenticated")
+
+        job = await JobService.add_subtask(
+            info.context["db"], user, job_id, description, cost
         )
         return map_job_model_to_type(job)
