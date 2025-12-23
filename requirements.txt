@@ -7,3 +7,6 @@ asyncpg
 httpx
 pytest
 pytest-asyncio
+pydantic-settings
+python-jose[cryptography]
+passlib[bcrypt]
