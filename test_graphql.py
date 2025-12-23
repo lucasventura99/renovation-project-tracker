@@ -108,5 +108,5 @@ async def test_create_job_and_subtasks(client, auth_token):
     data = response.json()
     
     fetched_job = data["data"]["job"]
-    assert fetched_job["id"] == str(job_id)
+    assert str(fetched_job["id"]) == str(job_id)
     assert fetched_job["subtasks"][0]["description"] == "CI Subtask"
