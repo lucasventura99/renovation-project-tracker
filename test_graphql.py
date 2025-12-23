@@ -33,7 +33,7 @@ async def auth_token(client):
     data = response.json()
     
     # If user already exists (from previous run), login instead
-    if not data.get("data", {}).get("register"):
+    if not (data.get("data") or {}).get("register"):
         login_query = """
         mutation {
             login(email: "%s", password: "%s") {
